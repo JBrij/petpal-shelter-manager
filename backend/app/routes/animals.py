@@ -4,32 +4,63 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.models import Animal
 
-animals_bp = Blueprint("animals", __name__, url_prefix="/api/animals")
+animals_bp = Blueprint("animals", __name__, url_prefix="/animals")
 
-@animals_bp.route("", methods=["POST"])
-def create_animal():
-    name = request.form.get("name")
-    species = request.form.get("species")
+# Allowed image extensions
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@animals_bp.route("/add", methods=["POST"])
+def add_animal():
+    if "name" not in request.form or "species" not in request.form:
+        return jsonify({"error": "Name and species are required"}), 400
+
+    name = request.form["name"]
+    species = request.form["species"]
     age = request.form.get("age")
+    status = request.form.get("status", "available")
     description = request.form.get("description")
-    image = request.files.get("image")
 
+    # Handle image upload
+    image = request.files.get("image")
     image_path = None
-    if image:
+    if image and allowed_file(image.filename):
         filename = secure_filename(image.filename)
-        save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-        image.save(save_path)
+        upload_folder = os.path.join(current_app.root_path, "../../uploads")
+        os.makedirs(upload_folder, exist_ok=True)
+        filepath = os.path.join(upload_folder, filename)
+        image.save(filepath)
         image_path = f"/uploads/{filename}"
 
+    # Create animal record
     animal = Animal(
         name=name,
         species=species,
         age=age,
+        status=status,
         description=description,
         image_path=image_path
     )
-
     db.session.add(animal)
     db.session.commit()
 
-    return jsonify({"message": "Animal created"}), 201
+    return jsonify({"message": "Animal added successfully", "id": animal.id}), 201
+
+@animals_bp.route("/", methods=["GET"])
+def get_animals():
+    animals = Animal.query.all()
+    result = []
+    for animal in animals:
+        result.append({
+            "id": animal.id,
+            "name": animal.name,
+            "species": animal.species,
+            "age": animal.age,
+            "status": animal.status,
+            "description": animal.description,
+            "image_url": f"http://127.0.0.1:5000{animal.image_path}" if animal.image_path else None
+        })
+    return {"animals": result}
+
