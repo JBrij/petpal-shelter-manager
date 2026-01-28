@@ -1,0 +1,17 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+
+# Uploads (images)
+uploads/
+
+# Database files
+*.db
+
+# React frontend
+frontend/node_modules/
+frontend/dist/
