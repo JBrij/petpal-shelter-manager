@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app import db
 from app.models import Animal
+from app.models import AdoptionApplication
 
 animals_bp = Blueprint("animals", __name__, url_prefix="/animals")
 
@@ -78,4 +79,24 @@ def get_animal(animal_id):
         "image_url": f"http://127.0.0.1:5000{animal.image_path}" if animal.image_path else None
     }
 
+@animals_bp.route("/<int:animal_id>/apply", methods=["POST"])
+def apply_for_animal(animal_id):
+    Animal.query.get_or_404(animal_id)  # Ensure animal exists
+    
+    data = request.form
 
+    if not data.get("name") or not data.get("email"):
+        return jsonify({"error": "Name and email are required"}), 400
+
+    application = AdoptionApplication(
+        animal_id=animal_id,
+        applicant_name=data["name"],
+        email=data["email"],
+        phone=data.get("phone"),
+        message=data.get("message")
+    )
+
+    db.session.add(application)
+    db.session.commit()
+
+    return jsonify({"message": "Application submitted successfully"}), 201

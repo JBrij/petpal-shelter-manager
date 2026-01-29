@@ -6,10 +6,9 @@
   <title>PetPal — Animal</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 24px; }
-    a { color: inherit; }
     .wrap { max-width: 900px; margin: 0 auto; }
     .back { display:inline-block; margin-bottom: 16px; color:#444; text-decoration:none; }
-    .card { border: 1px solid #ddd; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    .card { border: 1px solid #ddd; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); background: #fff; }
     .imgwrap { width: 100%; height: 360px; background: #f3f3f3; display:flex; align-items:center; justify-content:center; }
     .imgwrap img { width: 100%; height: 100%; object-fit: cover; }
     .content { padding: 16px 18px; }
@@ -17,46 +16,86 @@
     .meta { margin: 6px 0; color:#333; }
     .tag { display: inline-block; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #eee; margin-top: 10px; }
     .desc { margin-top: 14px; color:#444; line-height: 1.45; }
-    .error { color: #b00020; }
-    .actions { margin-top: 16px; display:flex; gap: 10px; }
-    .btn { padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+    .error { color: #b00020; margin-top: 10px; }
+    .sectionTitle { margin-top: 20px; font-size: 18px; font-weight: 700; }
+
+    form { margin-top: 10px; }
+    label { display:block; margin-top: 10px; font-weight: 600; color:#333; }
+    input, textarea {
+      width: 100%;
+      max-width: 520px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+      box-sizing: border-box;
+      margin-top: 6px;
+    }
+    textarea { resize: vertical; }
+
+    .btn {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .smallNote { color:#666; margin-top: 6px; font-size: 13px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <a class="back" href="/adopt">← Back to adoptable animals</a>
 
-    <div id="status"></div>
+    <div id="pageStatus"></div>
 
     <div class="card" id="card" style="display:none;">
       <div class="imgwrap" id="imgwrap"></div>
+
       <div class="content">
         <p class="name" id="name"></p>
+
         <p class="meta" id="species"></p>
         <p class="meta" id="age"></p>
         <span class="tag" id="statusTag"></span>
 
         <div class="desc" id="description"></div>
 
-        <div class="actions">
-          <button class="btn" onclick="alert('Next step: adoption application form')">
-            Apply to Adopt (coming next)
-          </button>
-        </div>
+        <div class="sectionTitle">Apply to Adopt</div>
+        <p class="smallNote">Fill this out and the shelter will review your application.</p>
+
+        <form id="applyForm">
+          <label for="appName">Your Name *</label>
+          <input id="appName" type="text" name="name" placeholder="Jane Doe" required />
+
+          <label for="appEmail">Email *</label>
+          <input id="appEmail" type="email" name="email" placeholder="jane@email.com" required />
+
+          <label for="appPhone">Phone (optional)</label>
+          <input id="appPhone" type="text" name="phone" placeholder="(555) 555-5555" />
+
+          <label for="appMessage">Why would you be a good fit? (optional)</label>
+          <textarea id="appMessage" name="message" rows="4" placeholder="Tell us about your home, experience, and schedule..."></textarea>
+
+          <button class="btn" id="submitBtn" type="submit">Submit Application</button>
+          <div id="formStatus" class="smallNote"></div>
+        </form>
       </div>
     </div>
   </div>
 
   <script>
-    // Flask passes this in from the route
     const animalId = {{ animal_id }};
 
     async function loadAnimal() {
-      const statusEl = document.getElementById("status");
+      const pageStatusEl = document.getElementById("pageStatus");
       const card = document.getElementById("card");
 
-      statusEl.textContent = "Loading...";
-      statusEl.className = "";
+      pageStatusEl.textContent = "Loading...";
+      pageStatusEl.className = "";
 
       try {
         const res = await fetch(`/animals/${animalId}`);
@@ -77,13 +116,46 @@
           imgwrap.innerHTML = `<div style="color:#777;">No Image</div>`;
         }
 
-        statusEl.textContent = "";
+        pageStatusEl.textContent = "";
         card.style.display = "block";
       } catch (err) {
-        statusEl.textContent = "Error loading animal: " + err.message;
-        statusEl.className = "error";
+        pageStatusEl.textContent = "Error loading animal: " + err.message;
+        pageStatusEl.className = "error";
       }
     }
+
+    async function submitApplication(e) {
+      e.preventDefault();
+
+      const form = document.getElementById("applyForm");
+      const formStatusEl = document.getElementById("formStatus");
+      const submitBtn = document.getElementById("submitBtn");
+
+      formStatusEl.textContent = "Submitting...";
+      submitBtn.disabled = true;
+
+      try {
+        const formData = new FormData(form);
+        const res = await fetch(`/animals/${animalId}/apply`, {
+          method: "POST",
+          body: formData
+        });
+
+        if (res.ok) {
+          formStatusEl.textContent = "Application submitted! 🐾";
+          form.reset();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          formStatusEl.textContent = err.error ? `Error: ${err.error}` : "Error submitting application.";
+        }
+      } catch (err) {
+        formStatusEl.textContent = "Network error submitting application.";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    document.getElementById("applyForm").addEventListener("submit", submitApplication);
 
     loadAnimal();
   </script>
