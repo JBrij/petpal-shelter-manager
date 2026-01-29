@@ -100,3 +100,30 @@ def apply_for_animal(animal_id):
     db.session.commit()
 
     return jsonify({"message": "Application submitted successfully"}), 201
+
+@animals_bp.route("/applications", methods=["GET"])
+def list_applications():
+    apps = AdoptionApplication.query.order_by(AdoptionApplication.id.desc()).all()
+
+    result = []
+    for a in apps:
+        animal = Animal.query.get(a.animal_id)
+
+        result.append({
+            "id": a.id,
+            "animal_id": a.animal_id,
+            "animal_name": animal.name if animal else "Unknown",
+            "animal_species": animal.species if animal else None,
+            "animal_image_url": (
+                f"http://127.0.0.1:5000{animal.image_path}"
+                if animal and animal.image_path else None
+            ),
+            "applicant_name": a.applicant_name,
+            "email": a.email,
+            "phone": a.phone,
+            "message": a.message,
+            "status": a.status
+        })
+
+    return {"applications": result}
+
