@@ -64,3 +64,18 @@ def get_animals():
         })
     return {"animals": result}
 
+@animals_bp.route("/<int:animal_id>", methods=["GET"])
+def get_animal(animal_id):
+    animal = Animal.query.get_or_404(animal_id)
+
+    return {
+        "id": animal.id,
+        "name": animal.name,
+        "species": animal.species,
+        "age": animal.age,
+        "status": animal.status,
+        "description": animal.description,
+        "image_url": f"http://127.0.0.1:5000{animal.image_path}" if animal.image_path else None
+    }
+
+
