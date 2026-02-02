@@ -41,6 +41,10 @@ def create_app():
     @app.route("/")
     def home():
         return {"message": "PetPal API running"}
+    
+    @app.route("/admin/applications")
+    def admin_applications_page():
+        return render_template("admin_applications.html")
 
     # Create tables if they don't exist
     with app.app_context():
