@@ -43,7 +43,8 @@ def create_app():
     # Home route
     @app.route("/")
     def home():
-        return {"message": "PetPal API running"}
+        return render_template("homepage.html")
+
 
     # Create tables if they don't exist
     with app.app_context():
@@ -73,6 +74,18 @@ def create_app():
     @login_required
     def admin_applications_page():
         return render_template("admin_applications.html")
+    
+    @app.route("/admin/add-animal")
+    @login_required
+    def admin_add_animal_page():
+        return render_template("admin_add_animal.html")
+    
+    @app.route("/admin/animals")
+    @login_required
+    def admin_manage_animals_page():
+        return render_template("admin_manage_animals.html")
+
+
 
     
     

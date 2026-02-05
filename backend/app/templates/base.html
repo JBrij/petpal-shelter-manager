@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}PetPal{% endblock %}</title>
+
+  <style>
+    :root{
+      --bg:#0b1220;
+      --card:#111b2e;
+      --text:#e9eefc;
+      --muted:#a9b6d3;
+      --brand:#7c5cff;
+      --brand2:#33d6a6;
+      --danger:#ff5c7c;
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 14px 40px rgba(0,0,0,.35);
+      --radius: 16px;
+      --radius2: 22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 600px at 15% -10%, rgba(124,92,255,.35), transparent 60%),
+        radial-gradient(900px 500px at 90% 10%, rgba(51,214,166,.25), transparent 55%),
+        linear-gradient(180deg, #070d18, var(--bg) 45%);
+      min-height:100vh;
+    }
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:1100px;margin:0 auto;padding:22px}
+    .nav{
+      position:sticky;top:0;z-index:50;
+      backdrop-filter: blur(12px);
+      background: rgba(7,13,24,.65);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner{
+      max-width:1100px;margin:0 auto;
+      padding:14px 22px;
+      display:flex;align-items:center;justify-content:space-between;gap:14px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px;}
+    .logo{
+      width:34px;height:34px;border-radius:10px;
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      box-shadow: 0 10px 22px rgba(124,92,255,.25);
+    }
+    .nav-links{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .pill{
+      padding:10px 12px;border:1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      border-radius: 999px;
+      font-weight:650;font-size: 14px;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    .pill:hover{transform: translateY(-1px);background: rgba(255,255,255,.08);border-color: rgba(255,255,255,.18);}
+    .pill.primary{border-color: transparent;background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(51,214,166,.85));color:#07101f;}
+    .pill.danger{background: rgba(255,92,124,.16);border-color: rgba(255,92,124,.35);color: #ffd7df;}
+
+    .hero{
+      margin-top: 18px;
+      padding: 26px;
+      border-radius: var(--radius2);
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      box-shadow: var(--shadow);
+    }
+    .hero h1{margin:0 0 10px 0;font-size: 34px;line-height:1.15}
+    .hero p{margin:0;color:var(--muted);font-size:16px;line-height:1.6;max-width: 70ch}
+
+    .grid{display:grid;grid-template-columns: repeat(12, 1fr);gap: 16px;margin-top: 18px;}
+    .card{
+      grid-column: span 12;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border-radius: var(--radius);
+      box-shadow: 0 10px 26px rgba(0,0,0,.25);
+      overflow:hidden;
+    }
+    .card .pad{padding:18px}
+    .card h2{margin:0 0 8px 0;font-size:18px}
+    .card p{margin:0;color:var(--muted);line-height:1.55}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding: 11px 14px;border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-weight: 750;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      cursor:pointer;
+    }
+    .btn:hover{transform:translateY(-1px);background: rgba(255,255,255,.09);border-color: rgba(255,255,255,.18);}
+    .btn.primary{border-color: transparent;background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(51,214,166,.85));color:#07101f;}
+    .btn.danger{background: rgba(255,92,124,.16);border-color: rgba(255,92,124,.35);color: #ffd7df;}
+    .btn.full{width:100%}
+    .btn[disabled]{opacity:.55;cursor:not-allowed}
+
+    .input, textarea, select{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      outline: none;
+      resize: vertical;
+    }
+    .input:focus, textarea:focus, select:focus{
+      border-color: rgba(124,92,255,.6);
+      box-shadow: 0 0 0 3px rgba(124,92,255,.15);
+    }
+    label{display:block;margin-bottom:6px}
+    .muted{color:var(--muted)}
+    .small{font-size: 13px}
+    .divider{height:1px;background:var(--border);margin:14px 0}
+
+    .badge{
+      display:inline-flex;align-items:center;
+      padding: 6px 10px;border-radius: 999px;font-size: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      font-weight: 700;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .animal-card{grid-column: span 12;}
+    @media (min-width: 900px){
+      .animal-card{grid-column: span 6;}
+    }
+    .img{
+      width:100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+    }
+    .empty{
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px dashed rgba(255,255,255,.22);
+      background: rgba(0,0,0,.18);
+      color: rgba(255,255,255,.65);
+    }
+
+    /* Adopted visual state */
+    .adopted{
+      opacity: 0.45;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+    .adopted-badge{
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #ffd7df;
+    }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+      border-radius: 14px;
+      overflow:hidden;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.18);
+    }
+    th, td{
+      padding: 12px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      text-align:left;
+      vertical-align: top;
+    }
+    th{color:#d7e0ff;font-size: 13px;letter-spacing:.2px}
+    .footer{padding: 40px 22px 26px;color: var(--muted);text-align:center;font-size: 13px;}
+  </style>
+</head>
+
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/">
+        <span class="logo" aria-hidden="true"></span>
+        <span>PetPal</span>
+      </a>
+
+      <nav class="nav-links">
+        <a class="pill" href="/adopt">Adopt</a>
+
+        {% if session.get("admin_id") %}
+          <a class="pill" href="/admin/animals">Manage Animals</a>
+          <a class="pill primary" href="/admin/applications">Dashboard</a>
+          <a class="pill danger" href="/admin/logout">Logout</a>
+        {% else %}
+          <a class="pill" href="/admin/login">Admin</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+
+  <div class="footer">
+    PetPal Shelter Manager • Flask + SQLAlchemy
+  </div>
+</body>
+</html>

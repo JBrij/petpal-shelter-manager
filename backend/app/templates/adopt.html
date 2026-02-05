@@ -1,88 +1,194 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PetPal — Adoptable Animals</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 24px; }
-    h1 { margin-bottom: 6px; }
-    p { margin-top: 0; color: #555; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 18px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); background: #fff; }
-    .imgwrap { width: 100%; height: 180px; background: #f3f3f3; display:flex; align-items:center; justify-content:center; }
-    .imgwrap img { width: 100%; height: 100%; object-fit: cover; }
-    .content { padding: 12px 14px; }
-    .name { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
-    .meta { margin: 0; color: #444; }
-    .tag { display: inline-block; font-size: 12px; padding: 4px 8px; border-radius: 999px; background: #eee; margin-top: 10px; }
-    .error { color: #b00020; }
-  </style>
-</head>
-<body>
-  <h1>Adoptable Animals</h1>
-  <p>Powered by PetPal</p>
+{% extends "base.html" %}
+{% block title %}Adopt | PetPal{% endblock %}
 
-  <div id="status"></div>
-  <div class="grid" id="grid"></div>
+{% block content %}
+  <section class="hero">
+    <h1>Adopt</h1>
+    <p>Search animals and click one to view details and apply.</p>
+  </section>
+
+  <div class="grid">
+    <div class="card">
+      <div class="pad">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;">
+          <div style="flex:1;min-width:240px;">
+            <label class="small muted">Search</label>
+            <input id="search" class="input" placeholder="Search by name, species, age, status…" />
+            <div class="small muted" style="margin-top:8px;">Example: “cat”, “dog”, “available”, “months”</div>
+          </div>
+
+          <div style="min-width:220px;">
+            <label class="small muted">Sort</label>
+            <select id="sort" class="input">
+              <option value="status_name" selected>Available first, then name</option>
+              <option value="name">Name (A → Z)</option>
+              <option value="species">Species (A → Z)</option>
+            </select>
+          </div>
+
+          <div style="min-width:200px;">
+            <label class="small muted">View</label>
+            <label style="display:flex;gap:10px;align-items:center;cursor:pointer; user-select:none;">
+              <input id="hideAdopted" type="checkbox" />
+              <span class="small muted">Hide adopted</span>
+            </label>
+          </div>
+
+          <button id="refreshBtn" class="btn">Refresh</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="status" class="muted small">Loading animals…</div>
+        <div id="cards" class="cards"></div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    async function loadAnimals() {
-      const statusEl = document.getElementById("status");
-      const grid = document.getElementById("grid");
+    const statusEl = document.getElementById("status");
+    const cardsEl = document.getElementById("cards");
+    const searchEl = document.getElementById("search");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const sortEl = document.getElementById("sort");
+    const hideAdoptedEl = document.getElementById("hideAdopted");
 
-      statusEl.textContent = "Loading animals...";
-      statusEl.className = "";
+    let animals = [];
 
-      try {
-        // Your API endpoint (based on your blueprint)
-        const res = await fetch("/animals/");
-        if (!res.ok) throw new Error("Request failed: " + res.status);
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;")
+        .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
 
-        const data = await res.json();
-        const animals = data.animals || [];
+    function normalizeStatus(st){
+      st = (st || "available").toLowerCase();
+      if (st === "available") return 0;
+      if (st === "pending") return 1;
+      if (st === "adopted") return 2;
+      return 3;
+    }
 
-        if (animals.length === 0) {
-          statusEl.textContent = "No animals yet. Add some using your upload form.";
-          return;
-        }
+    function compare(a, b, mode){
+      const an = (a.name || "").toLowerCase();
+      const bn = (b.name || "").toLowerCase();
+      const as = (a.species || "").toLowerCase();
+      const bs = (b.species || "").toLowerCase();
 
-        statusEl.textContent = "";
+      if (mode === "name") return an.localeCompare(bn);
+      if (mode === "species") return as.localeCompare(bs) || an.localeCompare(bn);
 
-        animals.forEach(a => {
-          const card = document.createElement("div");
-          card.className = "card";
-	  card.style.cursor = "pointer";
-          card.addEventListener("click", () => {
-          window.location.href = `/animal/${a.id}`;
-         });
+      // default: available first, then name
+      const sa = normalizeStatus(a.status);
+      const sb = normalizeStatus(b.status);
+      return (sa - sb) || an.localeCompare(bn);
+    }
 
+    function cardHtml(a){
+      const id = a.id;
+      const name = escapeHtml(a.name || "Unnamed");
+      const species = escapeHtml(a.species || "Animal");
+      const ageText = a.age_display ? escapeHtml(a.age_display) : "—";
+      const status = (a.status || "available").toLowerCase();
+      const desc = escapeHtml(a.description || "No description yet.");
+      const img = a.image_url;
 
-          const imgUrl = a.image_url || "";
-          const imgHTML = imgUrl
-            ? `<img src="${imgUrl}" alt="${a.name || "Animal"}" />`
-            : `<div style="color:#777;">No Image</div>`;
+      const isAdopted = status === "adopted";
 
-          card.innerHTML = `
-            <div class="imgwrap">${imgHTML}</div>
-            <div class="content">
-              <p class="name">${a.name ?? "Unnamed"}</p>
-              <p class="meta"><strong>Species:</strong> ${a.species ?? "-"}</p>
-              <p class="meta"><strong>Age:</strong> ${a.age ?? "-"}</p>
-              <span class="tag">${a.status ?? "available"}</span>
+      const imgTag = img
+        ? `<img class="img" src="${escapeHtml(img)}" alt="${name}">`
+        : `<div class="empty" style="height:200px;display:flex;align-items:center;justify-content:center;">No photo</div>`;
+
+      return `
+        <div class="card animal-card ${isAdopted ? "adopted" : ""}">
+          <div class="pad">
+            ${imgTag}
+
+            <div style="margin-top:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+              <div>
+                <h2 style="margin:0 0 4px 0;">${name}</h2>
+                <div class="muted small">
+                  ${species} • Age: ${ageText}
+                  ${isAdopted ? '• <span class="badge adopted-badge">Already adopted ❤️</span>' : ''}
+                </div>
+              </div>
+              <span class="badge">#${escapeHtml(id)}</span>
             </div>
-          `;
 
-          grid.appendChild(card);
+            <div class="divider"></div>
+
+            <p class="muted small" style="margin:0 0 12px 0;min-height:38px;">
+              ${desc}
+            </p>
+
+            <div class="row">
+              ${
+                isAdopted
+                  ? `<button class="btn" disabled>Adopted</button>`
+                  : `<a class="btn primary" href="/animal/${encodeURIComponent(id)}">View & Apply</a>`
+              }
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function render(){
+      const q = (searchEl.value || "").trim().toLowerCase();
+      const hideAdopted = hideAdoptedEl.checked;
+      const sortMode = sortEl.value;
+
+      let list = animals.slice();
+
+      if (hideAdopted){
+        list = list.filter(a => (a.status || "").toLowerCase() !== "adopted");
+      }
+
+      if (q){
+        list = list.filter(a => {
+          const blob = [
+            a.name, a.species, a.status, a.description,
+            a.age_display, a.age_unit, a.age_value, a.id
+          ].join(" ").toLowerCase();
+          return blob.includes(q);
         });
+      }
 
-      } catch (err) {
-        statusEl.textContent = "Error loading animals: " + err.message;
-        statusEl.className = "error";
+      list.sort((a,b) => compare(a,b,sortMode));
+
+      cardsEl.innerHTML = list.map(cardHtml).join("");
+
+      if (!animals.length){
+        statusEl.textContent = "No animals yet. Add one using Admin → Add Animal.";
+      } else if (!list.length){
+        statusEl.textContent = "No matches. Try a different search/filter.";
+      } else {
+        statusEl.textContent = `Showing ${list.length} animal(s).`;
       }
     }
 
-    loadAnimals();
+    async function load(){
+      statusEl.textContent = "Loading animals…";
+      cardsEl.innerHTML = "";
+
+      const res = await fetch("/animals/", { headers: { "Accept": "application/json" } });
+      if (!res.ok){
+        statusEl.textContent = "Couldn’t load animals.";
+        cardsEl.innerHTML = `<div class="empty">API error: HTTP ${res.status}</div>`;
+        return;
+      }
+
+      const data = await res.json();
+      animals = (data.animals || []);
+      render();
+    }
+
+    searchEl.addEventListener("input", render);
+    refreshBtn.addEventListener("click", load);
+    sortEl.addEventListener("change", render);
+    hideAdoptedEl.addEventListener("change", render);
+
+    load();
   </script>
-</body>
-</html>
+{% endblock %}

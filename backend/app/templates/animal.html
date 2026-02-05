@@ -1,163 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PetPal — Animal</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 24px; }
-    .wrap { max-width: 900px; margin: 0 auto; }
-    .back { display:inline-block; margin-bottom: 16px; color:#444; text-decoration:none; }
-    .card { border: 1px solid #ddd; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); background: #fff; }
-    .imgwrap { width: 100%; height: 360px; background: #f3f3f3; display:flex; align-items:center; justify-content:center; }
-    .imgwrap img { width: 100%; height: 100%; object-fit: cover; }
-    .content { padding: 16px 18px; }
-    .name { font-size: 26px; font-weight: 800; margin: 0 0 10px; }
-    .meta { margin: 6px 0; color:#333; }
-    .tag { display: inline-block; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #eee; margin-top: 10px; }
-    .desc { margin-top: 14px; color:#444; line-height: 1.45; }
-    .error { color: #b00020; margin-top: 10px; }
-    .sectionTitle { margin-top: 20px; font-size: 18px; font-weight: 700; }
+{% extends "base.html" %}
+{% block title %}Animal | PetPal{% endblock %}
 
-    form { margin-top: 10px; }
-    label { display:block; margin-top: 10px; font-weight: 600; color:#333; }
-    input, textarea {
-      width: 100%;
-      max-width: 520px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      font-size: 14px;
-      box-sizing: border-box;
-      margin-top: 6px;
-    }
-    textarea { resize: vertical; }
+{% block content %}
+  <section class="hero">
+    <h1>Animal Details</h1>
+    <p>Review details and submit an adoption application.</p>
+    <div class="row">
+      <a class="btn" href="/adopt">← Back to Adopt</a>
+      <span class="badge">ID {{ animal_id }}</span>
+    </div>
+  </section>
 
-    .btn {
-      margin-top: 12px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      background: #fff;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .smallNote { color:#666; margin-top: 6px; font-size: 13px; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <a class="back" href="/adopt">← Back to adoptable animals</a>
+  <div class="grid">
+    <div class="card">
+      <div class="pad">
+        <div id="status" class="muted small">Loading animal…</div>
+        <div id="detail" style="margin-top:14px;"></div>
 
-    <div id="pageStatus"></div>
+        <div class="divider"></div>
 
-    <div class="card" id="card" style="display:none;">
-      <div class="imgwrap" id="imgwrap"></div>
-
-      <div class="content">
-        <p class="name" id="name"></p>
-
-        <p class="meta" id="species"></p>
-        <p class="meta" id="age"></p>
-        <span class="tag" id="statusTag"></span>
-
-        <div class="desc" id="description"></div>
-
-        <div class="sectionTitle">Apply to Adopt</div>
-        <p class="smallNote">Fill this out and the shelter will review your application.</p>
+        <h2 style="margin:0 0 10px 0;">Apply to Adopt</h2>
+        <p class="muted" style="margin:0 0 12px 0;">Fill this out and the shelter will review your application.</p>
 
         <form id="applyForm">
-          <label for="appName">Your Name *</label>
-          <input id="appName" type="text" name="name" placeholder="Jane Doe" required />
+          <label class="small muted">Full Name *</label>
+          <input class="input" name="name" required />
 
-          <label for="appEmail">Email *</label>
-          <input id="appEmail" type="email" name="email" placeholder="jane@email.com" required />
+          <div style="height:12px"></div>
 
-          <label for="appPhone">Phone (optional)</label>
-          <input id="appPhone" type="text" name="phone" placeholder="(555) 555-5555" />
+          <label class="small muted">Email *</label>
+          <input class="input" type="email" name="email" required />
 
-          <label for="appMessage">Why would you be a good fit? (optional)</label>
-          <textarea id="appMessage" name="message" rows="4" placeholder="Tell us about your home, experience, and schedule..."></textarea>
+          <div style="height:12px"></div>
 
-          <button class="btn" id="submitBtn" type="submit">Submit Application</button>
-          <div id="formStatus" class="smallNote"></div>
+          <label class="small muted">Phone (optional)</label>
+          <input class="input" name="phone" />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Message (optional)</label>
+          <textarea rows="4" name="message" placeholder="Tell us about your home, schedule, and pet experience."></textarea>
+
+          <div class="divider"></div>
+
+          <button class="btn primary full" type="submit">Submit Application</button>
+          <div id="formMsg" class="small muted" style="margin-top:10px;"></div>
         </form>
       </div>
     </div>
   </div>
 
   <script>
-    const animalId = {{ animal_id }};
+    const animalId = "{{ animal_id }}";
+    const statusEl = document.getElementById("status");
+    const detailEl = document.getElementById("detail");
+    const form = document.getElementById("applyForm");
+    const msg = document.getElementById("formMsg");
 
-    async function loadAnimal() {
-      const pageStatusEl = document.getElementById("pageStatus");
-      const card = document.getElementById("card");
-
-      pageStatusEl.textContent = "Loading...";
-      pageStatusEl.className = "";
-
-      try {
-        const res = await fetch(`/animals/${animalId}`);
-        if (!res.ok) throw new Error("Request failed: " + res.status);
-
-        const a = await res.json();
-
-        document.getElementById("name").textContent = a.name ?? "Unnamed";
-        document.getElementById("species").innerHTML = `<strong>Species:</strong> ${a.species ?? "-"}`;
-        document.getElementById("age").innerHTML = `<strong>Age:</strong> ${a.age ?? "-"}`;
-        document.getElementById("statusTag").textContent = a.status ?? "available";
-        document.getElementById("description").textContent = a.description || "No description yet.";
-
-        const imgwrap = document.getElementById("imgwrap");
-        if (a.image_url) {
-          imgwrap.innerHTML = `<img src="${a.image_url}" alt="${a.name ?? "Animal"}" />`;
-        } else {
-          imgwrap.innerHTML = `<div style="color:#777;">No Image</div>`;
-        }
-
-        pageStatusEl.textContent = "";
-        card.style.display = "block";
-      } catch (err) {
-        pageStatusEl.textContent = "Error loading animal: " + err.message;
-        pageStatusEl.className = "error";
-      }
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;")
+        .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
     }
 
-    async function submitApplication(e) {
+    function render(a){
+      const name = escapeHtml(a.name || "Unnamed");
+      const species = escapeHtml(a.species || "Animal");
+      const ageText = a.age_display ? escapeHtml(a.age_display) : "—";
+      const status = escapeHtml((a.status || "available").toLowerCase());
+      const desc = escapeHtml(a.description || "No description yet.");
+      const img = a.image_url;
+
+      const imgTag = img
+        ? `<img class="img" style="height:320px" src="${escapeHtml(img)}" alt="${name}">`
+        : `<div class="empty" style="height:320px;display:flex;align-items:center;justify-content:center;">No photo</div>`;
+
+      detailEl.innerHTML = `
+        ${imgTag}
+        <div style="margin-top:14px;">
+          <h2 style="margin:0 0 6px 0;">${name}</h2>
+          <div class="muted">${species} • Age: ${ageText} • <span class="badge">${status}</span></div>
+          <div class="divider"></div>
+          <p class="muted" style="margin:0;line-height:1.75;">${desc}</p>
+        </div>
+      `;
+    }
+
+    async function load(){
+      statusEl.textContent = "Loading animal…";
+      const res = await fetch(`/animals/${encodeURIComponent(animalId)}`, { headers: { "Accept":"application/json" }});
+      if (!res.ok){
+        statusEl.textContent = "Couldn’t load animal.";
+        detailEl.innerHTML = `<div class="empty">API error: HTTP ${res.status}</div>`;
+        return;
+      }
+      const data = await res.json();
+      statusEl.textContent = "Loaded.";
+      render(data);
+    }
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      msg.textContent = "Submitting…";
 
-      const form = document.getElementById("applyForm");
-      const formStatusEl = document.getElementById("formStatus");
-      const submitBtn = document.getElementById("submitBtn");
+      const fd = new FormData(form);
 
-      formStatusEl.textContent = "Submitting...";
-      submitBtn.disabled = true;
+      const res = await fetch(`/animals/${encodeURIComponent(animalId)}/apply`, {
+        method: "POST",
+        body: fd
+      });
 
-      try {
-        const formData = new FormData(form);
-        const res = await fetch(`/animals/${animalId}/apply`, {
-          method: "POST",
-          body: formData
-        });
+      const data = await res.json().catch(() => ({}));
 
-        if (res.ok) {
-          formStatusEl.textContent = "Application submitted! 🐾";
-          form.reset();
-        } else {
-          const err = await res.json().catch(() => ({}));
-          formStatusEl.textContent = err.error ? `Error: ${err.error}` : "Error submitting application.";
-        }
-      } catch (err) {
-        formStatusEl.textContent = "Network error submitting application.";
-      } finally {
-        submitBtn.disabled = false;
+      if (!res.ok){
+        msg.textContent = data.error ? `Error: ${data.error}` : "Something went wrong. Try again.";
+        return;
       }
-    }
 
-    document.getElementById("applyForm").addEventListener("submit", submitApplication);
+      form.reset();
+      msg.textContent = "✅ Application submitted! The shelter will review it soon.";
+    });
 
-    loadAnimal();
+    load();
   </script>
-</body>
-</html>
+{% endblock %}

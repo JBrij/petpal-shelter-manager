@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Home | PetPal{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Welcome to PetPal 🐾</h1>
+    <p>
+      Browse adoptable animals, view details, and submit applications. Shelter staff can securely review applications
+      from the admin dashboard.
+    </p>
+    <div class="row">
+      <a class="btn primary" href="/adopt">Browse Animals</a>
+      {% if session.get("admin_id") %}
+        <a class="btn" href="/admin/applications">Go to Dashboard</a>
+        <a class="btn" href="/admin/animals">Manage Animals</a>
+      {% else %}
+        <a class="btn" href="/admin/login">Admin Login</a>
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="card">
+      <div class="pad">
+        <h2>Quick Tips</h2>
+        <p>• Click an animal to see details and submit an application.</p>
+        <p>• Admins can approve/deny applications and manage animals.</p>
+      </div>
+    </div>
+  </div>
+{% endblock %}
