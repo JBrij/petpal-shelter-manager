@@ -77,6 +77,24 @@
     .animalText small {
       color: #666;
     }
+
+    .actionsCell {
+      white-space: nowrap;
+    }
+
+    .actionBtn {
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      margin-right: 6px;
+    }
+
+    .actionBtn:hover {
+      background: #f7f7f7;
+    }
   </style>
 </head>
 
@@ -95,12 +113,43 @@
         <th>Contact</th>
         <th>Status</th>
         <th>Message</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
   </table>
 
   <script>
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function setStatus(appId, status) {
+      try {
+        const res = await fetch(`/animals/applications/${appId}/status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error ? `Error: ${err.error}` : "Failed to update status.");
+          return;
+        }
+
+        // Refresh list after update
+        loadApplications();
+      } catch (e) {
+        alert("Network error updating status.");
+      }
+    }
+
     async function loadApplications() {
       const statusEl = document.getElementById("status");
       const table = document.getElementById("tbl");
@@ -154,6 +203,11 @@
             <td>${phone}</td>
             <td><span class="pill">${a.status}</span></td>
             <td class="msg">${escapeHtml(msg)}</td>
+            <td class="actionsCell">
+              <button class="actionBtn" onclick="setStatus(${a.id}, 'approved')">Approve</button>
+              <button class="actionBtn" onclick="setStatus(${a.id}, 'denied')">Deny</button>
+              <button class="actionBtn" onclick="setStatus(${a.id}, 'pending')">Reset</button>
+            </td>
           `;
 
           tbody.appendChild(tr);
@@ -163,15 +217,6 @@
         statusEl.className = "error";
         table.style.display = "none";
       }
-    }
-
-    function escapeHtml(str) {
-      return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
     }
 
     loadApplications();
