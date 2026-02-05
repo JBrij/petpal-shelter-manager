@@ -4,6 +4,8 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.models import Animal
 from app.models import AdoptionApplication
+from flask import session
+
 
 animals_bp = Blueprint("animals", __name__, url_prefix="/animals")
 
@@ -127,3 +129,25 @@ def list_applications():
 
     return {"applications": result}
 
+@animals_bp.route("/applications/<int:app_id>/status", methods=["POST"])
+def update_application_status(app_id):
+    if not session.get("admin_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    app_obj = AdoptionApplication.query.get_or_404(app_id)
+
+    data = request.get_json(silent=True) or {}
+    new_status = (data.get("status") or "").strip().lower()
+
+    allowed = {"pending", "approved", "denied"}
+    if new_status not in allowed:
+        return jsonify({"error": "Invalid status"}), 400
+
+    app_obj.status = new_status
+    db.session.commit()
+
+    return jsonify({
+        "message": "Status updated",
+        "id": app_obj.id,
+        "status": app_obj.status
+    }), 200

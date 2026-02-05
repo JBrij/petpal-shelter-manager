@@ -18,6 +18,9 @@ def create_app():
     from app.models import Animal
     from flask import render_template
     from app.routes.animals import animals_bp
+    from flask import render_template, request, redirect, session, url_for
+    from app.models import Admin
+    from app.auth.utils import login_required
 
     # Register blueprints
     app.register_blueprint(animals_bp)
@@ -41,14 +44,36 @@ def create_app():
     @app.route("/")
     def home():
         return {"message": "PetPal API running"}
-    
-    @app.route("/admin/applications")
-    def admin_applications_page():
-        return render_template("admin_applications.html")
 
     # Create tables if they don't exist
     with app.app_context():
         db.create_all()
+
+    @app.route("/admin/login", methods=["GET", "POST"])
+    def admin_login():
+        if request.method == "POST":
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "")
+
+            admin = Admin.query.filter_by(username=username).first()
+            if admin and admin.check_password(password):
+                session["admin_id"] = admin.id
+                return redirect("/admin/applications")
+
+            return render_template("admin_login.html", error="Invalid username or password")
+
+        return render_template("admin_login.html", error=None)
+
+    @app.route("/admin/logout")
+    def admin_logout():
+        session.pop("admin_id", None)
+        return redirect("/admin/login")
+
+    @app.route("/admin/applications")
+    @login_required
+    def admin_applications_page():
+        return render_template("admin_applications.html")
+
     
     
 
