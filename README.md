@@ -1,16 +1,78 @@
-# PetPal: Shelter Records & Adoption Manager
+# 🐾 PetPal — Shelter Records & Adoption Manager
 
-PetPal is a full-stack web application designed to help small animal shelters manage
-animal records, medical histories, and adoption applications in one centralized platform.
+PetPal is a full-stack web application designed to help small animal shelters manage animal records and adoption applications in one centralized, easy-to-use platform.
 
-## Features (Planned)
-- Secure staff and admin authentication
-- Animal intake and profile management
-- Medical record tracking
-- Public-facing animal listings
-- Online adoption applications
+Shelters can list animals with photos, track adoption applications, and approve or deny requests through a secure admin dashboard. Public users can browse adoptable animals and apply online.
 
-## Tech Stack
-- Backend: Python (Flask)
-- Frontend: React
-- Database: PostgreSQL
+---
+
+## ✨ Features
+
+### Public
+- Homepage with site overview and live stats
+- Browse adoptable animals
+- View individual animal detail pages with images
+- Submit adoption applications online
+
+### Admin (Secure)
+- Admin login with session-based authentication
+- View all adoption applications
+- Approve, deny, or reset application status
+- Protected admin routes
+
+### System
+- Image uploads for animals
+- SQLite database with SQLAlchemy ORM
+- Clean Git workflow with `main` and `develop` branches
+
+---
+
+## 🧱 Tech Stack
+
+- **Backend:** Python, Flask
+- **Database:** SQLite (via SQLAlchemy)
+- **Authentication:** Flask sessions (admin login)
+- **Frontend:** Flask templates (HTML, CSS, JavaScript)
+- **Image Storage:** Local uploads (development)
+- **Version Control:** Git & GitHub
+
+---
+
+## 📂 Project Structure
+petpal/
+├── app/
+│ ├── init.py
+│ ├── config.py
+│ ├── models/
+│ ├── routes/
+│ ├── templates/
+│ └── static/
+├── uploads/
+├── venv/
+├── requirements.txt
+└── README.md
+
+### 1️⃣ Clone the repository
+```bash
+git clone <https://github.com/JBrij/petpal-shelter-manager>
+cd petpal
+
+### 2️⃣ Create and activate a virtual environment
+python -m venv venv
+venv\Scripts\activate   # Windows
+
+### 3️⃣ Install dependencies
+pip install -r requirements.txt
+
+### 4️⃣ Set environment variables (Windows)
+set FLASK_APP=app
+set FLASK_ENV=development
+
+### 5️⃣ Run the app
+flask run
+
+The site will be available at:
+http://127.0.0.1:5000/
+
+### 📜 License
+This project is for educational purposes.
