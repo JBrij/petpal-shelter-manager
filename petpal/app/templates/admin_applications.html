@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard | PetPal{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Admin Dashboard</h1>
+    <p>Review applications and approve/deny with one click.</p>
+    <div class="row">
+      <a class="btn" href="/admin/animals">Manage Animals</a>
+      <a class="btn primary" href="/admin/add-animal">➕ Add Animal</a>
+      <button class="btn" id="refreshBtn">Refresh</button>
+      <a class="btn danger" href="/admin/logout">Logout</a>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="card">
+      <div class="pad">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;">
+          <div style="flex:1;min-width:240px;">
+            <label class="small muted">Search</label>
+            <input id="search" class="input" placeholder="Search by applicant, animal, email, status…" />
+          </div>
+
+          <div style="min-width:220px;">
+            <label class="small muted">Filter</label>
+            <select id="filter" class="input">
+              <option value="all" selected>All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="denied">Denied</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="status" class="muted small">Loading applications…</div>
+
+        <div style="overflow:auto;margin-top:12px;">
+          <table id="table" style="display:none;">
+            <thead>
+              <tr>
+                <th>Applicant</th>
+                <th>Animal</th>
+                <th>Contact</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th style="width:300px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="empty" class="empty" style="display:none;margin-top:12px;">
+          No applications found.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const refreshBtn = document.getElementById("refreshBtn");
+    const statusEl = document.getElementById("status");
+    const tableEl = document.getElementById("table");
+    const tbodyEl = document.getElementById("tbody");
+    const emptyEl = document.getElementById("empty");
+    const searchEl = document.getElementById("search");
+    const filterEl = document.getElementById("filter");
+
+    let apps = [];
+
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;")
+        .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function badge(status){
+      const st = (status || "pending").toLowerCase();
+      return `<span class="badge">${escapeHtml(st)}</span>`;
+    }
+
+    function rowHtml(a){
+      const id = a.id;
+      const applicant = escapeHtml(a.applicant_name || "—");
+      const email = escapeHtml(a.email || "—");
+      const phone = escapeHtml(a.phone || "—");
+      const msg = escapeHtml(a.message || "—");
+      const animalName = escapeHtml(a.animal_name || "Unknown");
+      const species = escapeHtml(a.animal_species || "");
+      const img = a.animal_image_url;
+      const st = (a.status || "pending").toLowerCase();
+
+      const imgTag = img
+        ? `<img src="${escapeHtml(img)}" alt="" style="width:74px;height:54px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.10);">`
+        : `<div class="empty" style="width:74px;height:54px;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:0;">—</div>`;
+
+      return `
+        <tr>
+          <td>
+            <strong>${applicant}</strong>
+            <div class="muted small">App ID ${escapeHtml(id)}</div>
+          </td>
+          <td>
+            <div style="display:flex;gap:10px;align-items:center;">
+              ${imgTag}
+              <div>
+                <div><strong>${animalName}</strong></div>
+                <div class="muted small">${species} • Animal ID ${escapeHtml(a.animal_id)}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="small">${email}</div>
+            <div class="muted small">${phone}</div>
+          </td>
+          <td class="muted small" style="max-width:360px;">${msg}</td>
+          <td id="st-${escapeHtml(id)}">${badge(st)}</td>
+          <td>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn primary" data-set="${escapeHtml(id)}" data-status="approved">Approve</button>
+              <button class="btn" data-set="${escapeHtml(id)}" data-status="denied">Deny</button>
+              <button class="btn" data-set="${escapeHtml(id)}" data-status="pending">Reset</button>
+            </div>
+            <div class="small muted" id="msg-${escapeHtml(id)}" style="margin-top:8px;"></div>
+          </td>
+        </tr>
+      `;
+    }
+
+    function applyFilter(){
+      const q = (searchEl.value || "").trim().toLowerCase();
+      const f = filterEl.value;
+
+      let filtered = apps.slice();
+
+      if (f !== "all"){
+        filtered = filtered.filter(a => (a.status || "pending").toLowerCase() === f);
+      }
+      if (q){
+        filtered = filtered.filter(a => {
+          const blob = [
+            a.applicant_name, a.email, a.phone, a.message,
+            a.animal_name, a.animal_species, a.status, a.animal_id, a.id
+          ].join(" ").toLowerCase();
+          return blob.includes(q);
+        });
+      }
+
+      if (!apps.length){
+        statusEl.textContent = "No applications yet.";
+        tableEl.style.display = "none";
+        emptyEl.style.display = "block";
+        emptyEl.textContent = "No applications yet.";
+        return;
+      }
+
+      if (!filtered.length){
+        statusEl.textContent = "No matches for your search/filter.";
+        tableEl.style.display = "none";
+        emptyEl.style.display = "block";
+        emptyEl.textContent = "No applications match your filters.";
+        return;
+      }
+
+      tbodyEl.innerHTML = filtered.map(rowHtml).join("");
+      tableEl.style.display = "table";
+      emptyEl.style.display = "none";
+      statusEl.textContent = `Showing ${filtered.length} of ${apps.length} application(s).`;
+
+      document.querySelectorAll("[data-set]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-set");
+          const st = btn.getAttribute("data-status");
+          setStatus(id, st, btn);
+        });
+      });
+    }
+
+    async function setStatus(id, newStatus, btn){
+      const lineMsg = document.getElementById(`msg-${id}`);
+      const oldText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+      lineMsg.textContent = "";
+
+      const res = await fetch(`/animals/applications/${encodeURIComponent(id)}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok){
+        lineMsg.textContent = data.error || "Could not update status.";
+        btn.disabled = false;
+        btn.textContent = oldText;
+        return;
+      }
+
+      apps = apps.map(a => a.id == id ? { ...a, status: newStatus } : a);
+      document.getElementById(`st-${id}`).innerHTML = badge(newStatus);
+      lineMsg.textContent = "✅ Updated.";
+      btn.textContent = oldText;
+      btn.disabled = false;
+
+      applyFilter();
+    }
+
+    async function load(){
+      statusEl.textContent = "Loading applications…";
+      tableEl.style.display = "none";
+      emptyEl.style.display = "none";
+      tbodyEl.innerHTML = "";
+
+      const res = await fetch("/animals/applications", { headers: { "Accept":"application/json" }});
+      if (!res.ok){
+        statusEl.textContent = "Couldn’t load applications (are you logged in?).";
+        emptyEl.style.display = "block";
+        emptyEl.textContent = `API error: HTTP ${res.status}`;
+        return;
+      }
+
+      const data = await res.json();
+      apps = data.applications || [];
+      applyFilter();
+    }
+
+    refreshBtn.addEventListener("click", load);
+    searchEl.addEventListener("input", applyFilter);
+    filterEl.addEventListener("change", applyFilter);
+
+    load();
+  </script>
+{% endblock %}

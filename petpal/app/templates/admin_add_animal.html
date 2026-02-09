@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Add Animal | PetPal{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Add an Animal</h1>
+    <p>Add a new adoptable animal. Upload an optional photo for best results.</p>
+
+    <div class="row">
+      <a class="btn" href="/admin/animals">← Manage Animals</a>
+      <a class="btn" href="/admin/applications">Applications</a>
+      <a class="btn" href="/adopt">View Adopt Page</a>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="card" style="max-width:820px;margin:0 auto;">
+      <div class="pad">
+        <form id="animalForm" enctype="multipart/form-data">
+          <label class="small muted">Name *</label>
+          <input class="input" name="name" placeholder="e.g., Bella" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Species *</label>
+          <input class="input" name="species" placeholder="e.g., Dog / Cat / Rabbit" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Age (optional)</label>
+          <div style="display:flex;gap:10px;">
+            <input class="input" type="number" min="0" name="age_value" placeholder="4" />
+            <select class="input" name="age_unit">
+              <option value="">—</option>
+              <option value="weeks">weeks</option>
+              <option value="months">months</option>
+              <option value="years">years</option>
+            </select>
+          </div>
+          <div class="small muted" style="margin-top:8px;">Example: 4 months</div>
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Status</label>
+          <select class="input" name="status">
+            <option value="available" selected>Available</option>
+            <option value="pending">Pending</option>
+            <option value="adopted">Adopted</option>
+          </select>
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Description (optional)</label>
+          <textarea rows="4" name="description" placeholder="Temperament, energy level, good with kids/pets, etc."></textarea>
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Photo (optional)</label>
+          <input class="input" type="file" name="image" accept=".png,.jpg,.jpeg,.gif" />
+          <div class="small muted" style="margin-top:8px;">Allowed: png, jpg, jpeg, gif</div>
+
+          <div class="divider"></div>
+
+          <button class="btn primary full" type="submit" id="submitBtn">Add Animal</button>
+          <div id="msg" class="small muted" style="margin-top:10px;"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("animalForm");
+    const msg = document.getElementById("msg");
+    const btn = document.getElementById("submitBtn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "Submitting…";
+      btn.disabled = true;
+
+      const fd = new FormData(form);
+
+      const res = await fetch("/animals/add", {
+        method: "POST",
+        body: fd
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        msg.textContent = data.error ? `Error: ${data.error}` : "Something went wrong.";
+        btn.disabled = false;
+        return;
+      }
+
+      msg.textContent = `✅ Added successfully! New animal ID: ${data.id}`;
+      form.reset();
+      btn.disabled = false;
+    });
+  </script>
+{% endblock %}

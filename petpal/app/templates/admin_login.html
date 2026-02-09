@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Admin Login | PetPal{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Admin Login</h1>
+    <p>Sign in to review applications and manage animals.</p>
+  </section>
+
+  <div class="grid">
+    <div class="card" style="max-width:520px;margin:0 auto;">
+      <div class="pad">
+        {% if error %}
+          <div class="card" style="background: rgba(255,92,124,.12); border-color: rgba(255,92,124,.28);">
+            <div class="pad">
+              <strong style="color:#ffd7df;">Login failed</strong>
+              <div class="muted small" style="margin-top:6px;">{{ error }}</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+        {% endif %}
+
+        <form method="POST" action="/admin/login">
+          <label class="small muted">Username</label>
+          <input class="input" name="username" autocomplete="username" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Password</label>
+          <input class="input" type="password" name="password" autocomplete="current-password" required />
+
+          <div style="height:14px"></div>
+
+          <button class="btn primary full" type="submit">Sign In</button>
+
+          <div class="divider"></div>
+          <div class="small muted">This page is for shelter staff only.</div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

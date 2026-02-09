@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Animal | PetPal{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Animal Details</h1>
+    <p>Review details and submit an adoption application.</p>
+    <div class="row">
+      <a class="btn" href="/adopt">← Back to Adopt</a>
+      <span class="badge">ID {{ animal_id }}</span>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="card">
+      <div class="pad">
+        <div id="status" class="muted small">Loading animal…</div>
+        <div id="detail" style="margin-top:14px;"></div>
+
+        <div class="divider"></div>
+
+        <h2 style="margin:0 0 10px 0;">Apply to Adopt</h2>
+        <p class="muted" style="margin:0 0 12px 0;">Fill this out and the shelter will review your application.</p>
+
+        <form id="applyForm">
+          <label class="small muted">Full Name *</label>
+          <input class="input" name="name" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Email *</label>
+          <input class="input" type="email" name="email" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Phone (optional)</label>
+          <input class="input" name="phone" />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Message (optional)</label>
+          <textarea rows="4" name="message" placeholder="Tell us about your home, schedule, and pet experience."></textarea>
+
+          <div class="divider"></div>
+
+          <button class="btn primary full" type="submit">Submit Application</button>
+          <div id="formMsg" class="small muted" style="margin-top:10px;"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const animalId = "{{ animal_id }}";
+    const statusEl = document.getElementById("status");
+    const detailEl = document.getElementById("detail");
+    const form = document.getElementById("applyForm");
+    const msg = document.getElementById("formMsg");
+
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;")
+        .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function render(a){
+      const name = escapeHtml(a.name || "Unnamed");
+      const species = escapeHtml(a.species || "Animal");
+      const ageText = a.age_display ? escapeHtml(a.age_display) : "—";
+      const status = escapeHtml((a.status || "available").toLowerCase());
+      const desc = escapeHtml(a.description || "No description yet.");
+      const img = a.image_url;
+
+      const imgTag = img
+        ? `<img class="img" style="height:320px" src="${escapeHtml(img)}" alt="${name}">`
+        : `<div class="empty" style="height:320px;display:flex;align-items:center;justify-content:center;">No photo</div>`;
+
+      detailEl.innerHTML = `
+        ${imgTag}
+        <div style="margin-top:14px;">
+          <h2 style="margin:0 0 6px 0;">${name}</h2>
+          <div class="muted">${species} • Age: ${ageText} • <span class="badge">${status}</span></div>
+          <div class="divider"></div>
+          <p class="muted" style="margin:0;line-height:1.75;">${desc}</p>
+        </div>
+      `;
+    }
+
+    async function load(){
+      statusEl.textContent = "Loading animal…";
+      const res = await fetch(`/animals/${encodeURIComponent(animalId)}`, { headers: { "Accept":"application/json" }});
+      if (!res.ok){
+        statusEl.textContent = "Couldn’t load animal.";
+        detailEl.innerHTML = `<div class="empty">API error: HTTP ${res.status}</div>`;
+        return;
+      }
+      const data = await res.json();
+      statusEl.textContent = "Loaded.";
+      render(data);
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "Submitting…";
+
+      const fd = new FormData(form);
+
+      const res = await fetch(`/animals/${encodeURIComponent(animalId)}/apply`, {
+        method: "POST",
+        body: fd
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok){
+        msg.textContent = data.error ? `Error: ${data.error}` : "Something went wrong. Try again.";
+        return;
+      }
+
+      form.reset();
+      msg.textContent = "✅ Application submitted! The shelter will review it soon.";
+    });
+
+    load();
+  </script>
+{% endblock %}

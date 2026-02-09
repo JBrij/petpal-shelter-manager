@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% block title %}Manage Animals | PetPal{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Manage Animals</h1>
+    <p>Edit animal details, update status, or delete animals from the system.</p>
+
+    <div class="row">
+      <a class="btn primary" href="/admin/add-animal">➕ Add Animal</a>
+      <a class="btn" href="/admin/applications">📋 Applications</a>
+      <button class="btn" id="refreshBtn">Refresh</button>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="card">
+      <div class="pad">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;">
+          <div style="flex:1;min-width:240px;">
+            <label class="small muted">Search</label>
+            <input id="search" class="input" placeholder="Search by name, species, status…" />
+          </div>
+
+          <div style="min-width:240px;">
+            <label class="small muted">Sort</label>
+            <select id="sort" class="input">
+              <option value="status_name" selected>Available first, then name</option>
+              <option value="name">Name (A → Z)</option>
+              <option value="species">Species (A → Z)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="status" class="muted small">Loading…</div>
+        <div id="cards" class="cards"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="modalBg" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:1000; padding:22px; overflow:auto;">
+    <div class="card" style="max-width:760px;margin:40px auto;">
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div>
+            <h2 style="margin:0 0 6px 0;">Edit Animal</h2>
+            <div class="muted small" id="modalSubtitle">—</div>
+          </div>
+          <button class="btn" id="closeModalBtn">Close</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <form id="editForm" enctype="multipart/form-data">
+          <input type="hidden" id="editId" />
+
+          <label class="small muted">Name *</label>
+          <input class="input" name="name" id="editName" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Species *</label>
+          <input class="input" name="species" id="editSpecies" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Age</label>
+          <div style="display:flex;gap:10px;">
+            <input class="input" type="number" min="0" name="age_value" id="editAgeValue" placeholder="4" />
+            <select class="input" name="age_unit" id="editAgeUnit">
+              <option value="">—</option>
+              <option value="weeks">weeks</option>
+              <option value="months">months</option>
+              <option value="years">years</option>
+            </select>
+          </div>
+          <div class="small muted" style="margin-top:8px;">Example: 4 weeks / 6 months / 2 years</div>
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Status</label>
+          <select class="input" name="status" id="editStatus">
+            <option value="available">Available</option>
+            <option value="pending">Pending</option>
+            <option value="adopted">Adopted</option>
+          </select>
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Description</label>
+          <textarea rows="4" name="description" id="editDescription"></textarea>
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Replace Photo (optional)</label>
+          <input class="input" type="file" name="image" accept=".png,.jpg,.jpeg,.gif" />
+
+          <div class="divider"></div>
+
+          <button class="btn primary full" type="submit" id="saveBtn">Save Changes</button>
+          <div id="saveMsg" class="small muted" style="margin-top:10px;"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const cardsEl = document.getElementById("cards");
+    const searchEl = document.getElementById("search");
+    const sortEl = document.getElementById("sort");
+    const refreshBtn = document.getElementById("refreshBtn");
+
+    const modalBg = document.getElementById("modalBg");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const modalSubtitle = document.getElementById("modalSubtitle");
+
+    const editForm = document.getElementById("editForm");
+    const editId = document.getElementById("editId");
+    const editName = document.getElementById("editName");
+    const editSpecies = document.getElementById("editSpecies");
+    const editAgeValue = document.getElementById("editAgeValue");
+    const editAgeUnit = document.getElementById("editAgeUnit");
+    const editStatus = document.getElementById("editStatus");
+    const editDescription = document.getElementById("editDescription");
+    const saveBtn = document.getElementById("saveBtn");
+    const saveMsg = document.getElementById("saveMsg");
+
+    let animals = [];
+
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;")
+        .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function normalizeStatus(st){
+      st = (st || "available").toLowerCase();
+      if (st === "available") return 0;
+      if (st === "pending") return 1;
+      if (st === "adopted") return 2;
+      return 3;
+    }
+
+    function compare(a,b,mode){
+      const an = (a.name || "").toLowerCase();
+      const bn = (b.name || "").toLowerCase();
+      const as = (a.species || "").toLowerCase();
+      const bs = (b.species || "").toLowerCase();
+
+      if (mode === "name") return an.localeCompare(bn);
+      if (mode === "species") return as.localeCompare(bs) || an.localeCompare(bn);
+
+      return (normalizeStatus(a.status) - normalizeStatus(b.status)) || an.localeCompare(bn);
+    }
+
+    function cardHtml(a){
+      const id = a.id;
+      const name = escapeHtml(a.name || "Unnamed");
+      const species = escapeHtml(a.species || "—");
+      const ageText = a.age_display ? escapeHtml(a.age_display) : "—";
+      const status = escapeHtml((a.status || "available").toLowerCase());
+      const img = a.image_url;
+
+      const imgTag = img
+        ? `<img class="img" src="${escapeHtml(img)}" alt="${name}">`
+        : `<div class="empty" style="height:200px;display:flex;align-items:center;justify-content:center;">No photo</div>`;
+
+      return `
+        <div class="card animal-card">
+          <div class="pad">
+            ${imgTag}
+
+            <div style="margin-top:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+              <div>
+                <h2 style="margin:0 0 4px 0;">${name}</h2>
+                <div class="muted small">${species} • Age: ${ageText} • <span class="badge">${status}</span></div>
+              </div>
+              <span class="badge">#${escapeHtml(id)}</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="row">
+              <button class="btn primary" data-edit="${escapeHtml(id)}">Edit</button>
+              <button class="btn danger" data-del="${escapeHtml(id)}">Delete</button>
+            </div>
+
+            <div class="small muted" id="msg-${escapeHtml(id)}" style="margin-top:10px;"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function render(){
+      const q = (searchEl.value || "").trim().toLowerCase();
+      const mode = sortEl.value;
+
+      let list = animals.slice();
+
+      if (q){
+        list = list.filter(a => {
+          const blob = [a.name, a.species, a.status, a.description, a.age_display, a.id].join(" ").toLowerCase();
+          return blob.includes(q);
+        });
+      }
+
+      list.sort((a,b)=>compare(a,b,mode));
+
+      cardsEl.innerHTML = list.map(cardHtml).join("");
+
+      if (!animals.length){
+        statusEl.textContent = "No animals yet. Use “Add Animal”.";
+      } else if (!list.length){
+        statusEl.textContent = "No matches.";
+      } else {
+        statusEl.textContent = `Showing ${list.length} animal(s).`;
+      }
+
+      document.querySelectorAll("[data-edit]").forEach(btn=>{
+        btn.addEventListener("click", () => openEdit(btn.getAttribute("data-edit")));
+      });
+      document.querySelectorAll("[data-del]").forEach(btn=>{
+        btn.addEventListener("click", () => doDelete(btn.getAttribute("data-del")));
+      });
+    }
+
+    async function load(){
+      statusEl.textContent = "Loading…";
+      cardsEl.innerHTML = "";
+
+      const res = await fetch("/animals/", { headers: { "Accept": "application/json" } });
+      if (!res.ok){
+        statusEl.textContent = "Couldn’t load animals.";
+        cardsEl.innerHTML = `<div class="empty">API error: HTTP ${res.status}</div>`;
+        return;
+      }
+      const data = await res.json();
+      animals = data.animals || [];
+      render();
+    }
+
+    function openModal(){
+      modalBg.style.display = "block";
+    }
+    function closeModal(){
+      modalBg.style.display = "none";
+      editForm.reset();
+      saveMsg.textContent = "";
+      saveBtn.disabled = false;
+    }
+
+    async function openEdit(id){
+      const res = await fetch(`/animals/${encodeURIComponent(id)}`, { headers: { "Accept": "application/json" } });
+      if (!res.ok){
+        alert("Could not load animal details.");
+        return;
+      }
+      const a = await res.json();
+
+      editId.value = a.id;
+      editName.value = a.name || "";
+      editSpecies.value = a.species || "";
+      editAgeValue.value = (a.age_value ?? "");
+      editAgeUnit.value = (a.age_unit ?? "");
+      editStatus.value = (a.status || "available").toLowerCase();
+      editDescription.value = a.description || "";
+
+      modalSubtitle.textContent = `Editing #${a.id}`;
+      openModal();
+    }
+
+    async function doDelete(id){
+      if (!confirm(`Delete animal #${id}? This cannot be undone.`)) return;
+
+      const msgEl = document.getElementById(`msg-${id}`);
+      msgEl.textContent = "Deleting…";
+
+      const res = await fetch(`/animals/${encodeURIComponent(id)}/delete`, { method: "POST" });
+      const data = await res.json().catch(()=>({}));
+
+      if (!res.ok){
+        msgEl.textContent = data.error || "Delete failed.";
+        return;
+      }
+
+      msgEl.textContent = "✅ Deleted.";
+      animals = animals.filter(a => String(a.id) !== String(id));
+      render();
+    }
+
+    editForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      saveMsg.textContent = "Saving…";
+      saveBtn.disabled = true;
+
+      const id = editId.value;
+      const fd = new FormData(editForm);
+
+      const res = await fetch(`/animals/${encodeURIComponent(id)}/update`, {
+        method: "POST",
+        body: fd
+      });
+
+      const data = await res.json().catch(()=>({}));
+
+      if (!res.ok){
+        saveMsg.textContent = data.error || "Save failed.";
+        saveBtn.disabled = false;
+        return;
+      }
+
+      saveMsg.textContent = "✅ Saved!";
+      await load();
+      setTimeout(closeModal, 450);
+    });
+
+    closeModalBtn.addEventListener("click", closeModal);
+    modalBg.addEventListener("click", (e) => {
+      if (e.target === modalBg) closeModal();
+    });
+
+    refreshBtn.addEventListener("click", load);
+    searchEl.addEventListener("input", render);
+    sortEl.addEventListener("change", render);
+
+    load();
+  </script>
+{% endblock %}

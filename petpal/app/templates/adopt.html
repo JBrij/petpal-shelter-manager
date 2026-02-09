@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Adopt | PetPal{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Adopt</h1>
+    <p>Search animals and click one to view details and apply.</p>
+  </section>
+
+  <div class="grid">
+    <div class="card">
+      <div class="pad">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;">
+          <div style="flex:1;min-width:240px;">
+            <label class="small muted">Search</label>
+            <input id="search" class="input" placeholder="Search by name, species, age, status…" />
+            <div class="small muted" style="margin-top:8px;">Example: “cat”, “dog”, “available”, “months”</div>
+          </div>
+
+          <div style="min-width:220px;">
+            <label class="small muted">Sort</label>
+            <select id="sort" class="input">
+              <option value="status_name" selected>Available first, then name</option>
+              <option value="name">Name (A → Z)</option>
+              <option value="species">Species (A → Z)</option>
+            </select>
+          </div>
+
+          <div style="min-width:200px;">
+            <label class="small muted">View</label>
+            <label style="display:flex;gap:10px;align-items:center;cursor:pointer; user-select:none;">
+              <input id="hideAdopted" type="checkbox" />
+              <span class="small muted">Hide adopted</span>
+            </label>
+          </div>
+
+          <button id="refreshBtn" class="btn">Refresh</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="status" class="muted small">Loading animals…</div>
+        <div id="cards" class="cards"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const cardsEl = document.getElementById("cards");
+    const searchEl = document.getElementById("search");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const sortEl = document.getElementById("sort");
+    const hideAdoptedEl = document.getElementById("hideAdopted");
+
+    let animals = [];
+
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;")
+        .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function normalizeStatus(st){
+      st = (st || "available").toLowerCase();
+      if (st === "available") return 0;
+      if (st === "pending") return 1;
+      if (st === "adopted") return 2;
+      return 3;
+    }
+
+    function compare(a, b, mode){
+      const an = (a.name || "").toLowerCase();
+      const bn = (b.name || "").toLowerCase();
+      const as = (a.species || "").toLowerCase();
+      const bs = (b.species || "").toLowerCase();
+
+      if (mode === "name") return an.localeCompare(bn);
+      if (mode === "species") return as.localeCompare(bs) || an.localeCompare(bn);
+
+      // default: available first, then name
+      const sa = normalizeStatus(a.status);
+      const sb = normalizeStatus(b.status);
+      return (sa - sb) || an.localeCompare(bn);
+    }
+
+    function cardHtml(a){
+      const id = a.id;
+      const name = escapeHtml(a.name || "Unnamed");
+      const species = escapeHtml(a.species || "Animal");
+      const ageText = a.age_display ? escapeHtml(a.age_display) : "—";
+      const status = (a.status || "available").toLowerCase();
+      const desc = escapeHtml(a.description || "No description yet.");
+      const img = a.image_url;
+
+      const isAdopted = status === "adopted";
+
+      const imgTag = img
+        ? `<img class="img" src="${escapeHtml(img)}" alt="${name}">`
+        : `<div class="empty" style="height:200px;display:flex;align-items:center;justify-content:center;">No photo</div>`;
+
+      return `
+        <div class="card animal-card ${isAdopted ? "adopted" : ""}">
+          <div class="pad">
+            ${imgTag}
+
+            <div style="margin-top:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+              <div>
+                <h2 style="margin:0 0 4px 0;">${name}</h2>
+                <div class="muted small">
+                  ${species} • Age: ${ageText}
+                  ${isAdopted ? '• <span class="badge adopted-badge">Already adopted ❤️</span>' : ''}
+                </div>
+              </div>
+              <span class="badge">#${escapeHtml(id)}</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <p class="muted small" style="margin:0 0 12px 0;min-height:38px;">
+              ${desc}
+            </p>
+
+            <div class="row">
+              ${
+                isAdopted
+                  ? `<button class="btn" disabled>Adopted</button>`
+                  : `<a class="btn primary" href="/animal/${encodeURIComponent(id)}">View & Apply</a>`
+              }
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function render(){
+      const q = (searchEl.value || "").trim().toLowerCase();
+      const hideAdopted = hideAdoptedEl.checked;
+      const sortMode = sortEl.value;
+
+      let list = animals.slice();
+
+      if (hideAdopted){
+        list = list.filter(a => (a.status || "").toLowerCase() !== "adopted");
+      }
+
+      if (q){
+        list = list.filter(a => {
+          const blob = [
+            a.name, a.species, a.status, a.description,
+            a.age_display, a.age_unit, a.age_value, a.id
+          ].join(" ").toLowerCase();
+          return blob.includes(q);
+        });
+      }
+
+      list.sort((a,b) => compare(a,b,sortMode));
+
+      cardsEl.innerHTML = list.map(cardHtml).join("");
+
+      if (!animals.length){
+        statusEl.textContent = "No animals yet. Add one using Admin → Add Animal.";
+      } else if (!list.length){
+        statusEl.textContent = "No matches. Try a different search/filter.";
+      } else {
+        statusEl.textContent = `Showing ${list.length} animal(s).`;
+      }
+    }
+
+    async function load(){
+      statusEl.textContent = "Loading animals…";
+      cardsEl.innerHTML = "";
+
+      const res = await fetch("/animals/", { headers: { "Accept": "application/json" } });
+      if (!res.ok){
+        statusEl.textContent = "Couldn’t load animals.";
+        cardsEl.innerHTML = `<div class="empty">API error: HTTP ${res.status}</div>`;
+        return;
+      }
+
+      const data = await res.json();
+      animals = (data.animals || []);
+      render();
+    }
+
+    searchEl.addEventListener("input", render);
+    refreshBtn.addEventListener("click", load);
+    sortEl.addEventListener("change", render);
+    hideAdoptedEl.addEventListener("change", render);
+
+    load();
+  </script>
+{% endblock %}
