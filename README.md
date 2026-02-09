@@ -56,20 +56,28 @@ petpal/
 ```bash
 git clone <https://github.com/JBrij/petpal-shelter-manager>
 cd petpal
-
+```
 ### 2️⃣ Create and activate a virtual environment
+```bash
 python -m venv venv
 venv\Scripts\activate   # Windows
+```
 
 ### 3️⃣ Install dependencies
+```bash
 pip install -r requirements.txt
+```
 
 ### 4️⃣ Set environment variables (Windows)
+```bash
 set FLASK_APP=app
 set FLASK_ENV=development
+```
 
 ### 5️⃣ Run the app
+```bash
 flask run
+```
 
 The site will be available at:
 http://127.0.0.1:5000/
