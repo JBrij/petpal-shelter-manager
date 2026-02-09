@@ -1,10 +1,10 @@
 import os
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, session
 from werkzeug.utils import secure_filename
 from app import db
-from app.models import Animal
-from app.models import AdoptionApplication
-from flask import session
+from app.models import Animal, AdoptionApplication, InfoRequest
+
+
 
 animals_bp = Blueprint("animals", __name__, url_prefix="/animals")
 
@@ -291,3 +291,61 @@ def delete_animal(animal_id):
     db.session.commit()
 
     return jsonify({"message": "Animal deleted"}), 200
+
+@animals_bp.route("/<int:animal_id>/info", methods=["POST"])
+def request_info(animal_id):
+    data = request.form
+
+    if not data.get("name") or not data.get("email"):
+        return jsonify({"error": "Name and email required"}), 400
+
+    req = InfoRequest(
+        animal_id=animal_id,
+        name=data["name"],
+        email=data["email"],
+        message=data.get("message")
+    )
+
+    db.session.add(req)
+    db.session.commit()
+
+    return jsonify({"message": "Info request submitted"}), 201
+
+@animals_bp.route("/info-requests", methods=["GET"])
+def list_info_requests():
+    if not session.get("admin_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    reqs = InfoRequest.query.order_by(InfoRequest.created_at.desc()).all()
+
+    result = []
+    for r in reqs:
+        animal = Animal.query.get(r.animal_id)
+        result.append({
+            "id": r.id,
+            "animal_id": r.animal_id,
+            "animal_name": animal.name if animal else "Unknown",
+            "animal_species": animal.species if animal else None,
+            "animal_image_url": (
+                f"http://127.0.0.1:5000{animal.image_path}"
+                if animal and animal.image_path else None
+            ),
+            "name": r.name,
+            "email": r.email,
+            "message": r.message,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        })
+
+    return jsonify({"requests": result}), 200
+
+@animals_bp.route("/info-requests/<int:req_id>/complete", methods=["POST"])
+def complete_info_request(req_id):
+    if not session.get("admin_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    req = InfoRequest.query.get_or_404(req_id)
+    db.session.delete(req)
+    db.session.commit()
+
+    return jsonify({"message": "Info request completed"}), 200
+

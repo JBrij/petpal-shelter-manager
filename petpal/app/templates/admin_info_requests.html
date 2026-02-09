@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Info Requests | PetPal{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Info Requests</h1>
+    <p>Messages from visitors asking for more information about an animal.</p>
+    <div class="row">
+      <a class="btn" href="/admin/applications">← Back to Applications</a>
+      <a class="btn" href="/admin/logout">Logout</a>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="card">
+      <div class="pad">
+        <div id="status" class="muted small">Loading requests…</div>
+
+        <div class="divider"></div>
+
+        <div style="overflow:auto;">
+          <table class="table" id="tbl" style="width:100%; display:none;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Animal</th>
+                <th style="text-align:left;">Requester</th>
+                <th style="text-align:left;">Message</th>
+                <th style="text-align:left;">Submitted</th>
+                <th style="text-align:left;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="empty" class="empty" style="display:none; margin-top:12px;">
+          No info requests yet.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;")
+        .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function fmtDate(iso){
+      if (!iso) return "—";
+      try { return new Date(iso).toLocaleString(); } catch { return "—"; }
+    }
+
+    async function loadRequests(){
+      const statusEl = document.getElementById("status");
+      const tbl = document.getElementById("tbl");
+      const tbody = document.getElementById("tbody");
+      const emptyEl = document.getElementById("empty");
+
+      statusEl.textContent = "Loading requests…";
+      tbl.style.display = "none";
+      emptyEl.style.display = "none";
+      tbody.innerHTML = "";
+
+      const res = await fetch("/animals/info-requests", { headers: { "Accept": "application/json" } });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok){
+        statusEl.textContent = data.error ? `Error: ${data.error}` : "Couldn’t load info requests.";
+        return;
+      }
+
+      const reqs = data.requests || [];
+      statusEl.textContent = "";
+
+      if (reqs.length === 0){
+        emptyEl.style.display = "block";
+        return;
+      }
+
+      tbl.style.display = "table";
+
+      for (const r of reqs){
+        const animalName = escapeHtml(r.animal_name || "Unknown");
+        const species = escapeHtml(r.animal_species || "");
+        const img = r.animal_image_url;
+
+        const imgTag = img
+          ? `<img class="img" style="width:56px;height:56px;object-fit:cover;border-radius:12px;" src="${escapeHtml(img)}" alt="${animalName}">`
+          : `<div class="empty" style="width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;">No photo</div>`;
+
+        const msg = r.message ? escapeHtml(r.message) : "—";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="min-width:240px;">
+            <div style="display:flex;gap:12px;align-items:center;">
+              ${imgTag}
+              <div>
+                <div style="font-weight:800;">${animalName}</div>
+                <div class="muted small">${species} • ID ${r.animal_id}</div>
+              </div>
+            </div>
+          </td>
+
+          <td style="min-width:220px;">
+            <div style="font-weight:800;">${escapeHtml(r.name)}</div>
+            <div class="muted small">${escapeHtml(r.email)}</div>
+          </td>
+
+          <td style="min-width:320px;">
+            <div class="muted" style="line-height:1.6;">${msg}</div>
+          </td>
+
+          <td style="min-width:180px;">
+            <div class="muted small">${fmtDate(r.created_at)}</div>
+          </td>
+
+          <td style="min-width:140px;">
+            <button class="btn" onclick="completeRequest(${r.id})">Complete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function completeRequest(reqId){
+  if (!confirm("Mark this info request as complete?")) return;
+
+  const res = await fetch(`/animals/info-requests/${reqId}/complete`, {
+    method: "POST",
+    headers: { "Accept": "application/json" }
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok){
+    alert(data.error ? `Error: ${data.error}` : "Could not complete request.");
+    return;
+  }
+
+  loadRequests(); // refresh table
+}
+
+
+    loadRequests();
+  </script>
+{% endblock %}

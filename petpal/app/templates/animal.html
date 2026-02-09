@@ -4,7 +4,7 @@
 {% block content %}
   <section class="hero">
     <h1>Animal Details</h1>
-    <p>Review details and submit an adoption application.</p>
+    <p>Review details, submit an adoption application, or request more information.</p>
     <div class="row">
       <a class="btn" href="/adopt">← Back to Adopt</a>
       <span class="badge">ID {{ animal_id }}</span>
@@ -46,16 +46,48 @@
           <button class="btn primary full" type="submit">Submit Application</button>
           <div id="formMsg" class="small muted" style="margin-top:10px;"></div>
         </form>
+
+        <div class="divider"></div>
+
+        <h2 style="margin:0 0 10px 0;">Request More Information</h2>
+        <p class="muted" style="margin:0 0 12px 0;">
+          Not ready to apply? Send a quick request and the shelter can share more details.
+        </p>
+
+        <form id="infoForm">
+          <label class="small muted">Full Name *</label>
+          <input class="input" name="name" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Email *</label>
+          <input class="input" type="email" name="email" required />
+
+          <div style="height:12px"></div>
+
+          <label class="small muted">Question / Message (optional)</label>
+          <textarea rows="3" name="message" placeholder="What would you like to know about this animal?"></textarea>
+
+          <div class="divider"></div>
+
+          <button class="btn full" type="submit">Request Info</button>
+          <div id="infoMsg" class="small muted" style="margin-top:10px;"></div>
+        </form>
       </div>
     </div>
   </div>
 
   <script>
     const animalId = "{{ animal_id }}";
+
     const statusEl = document.getElementById("status");
     const detailEl = document.getElementById("detail");
-    const form = document.getElementById("applyForm");
-    const msg = document.getElementById("formMsg");
+
+    const applyForm = document.getElementById("applyForm");
+    const applyMsg = document.getElementById("formMsg");
+
+    const infoForm = document.getElementById("infoForm");
+    const infoMsg = document.getElementById("infoMsg");
 
     function escapeHtml(s){
       return String(s ?? "")
@@ -89,23 +121,26 @@
 
     async function load(){
       statusEl.textContent = "Loading animal…";
-      const res = await fetch(`/animals/${encodeURIComponent(animalId)}`, { headers: { "Accept":"application/json" }});
+      const res = await fetch(`/animals/${encodeURIComponent(animalId)}`, {
+        headers: { "Accept":"application/json" }
+      });
+
       if (!res.ok){
         statusEl.textContent = "Couldn’t load animal.";
         detailEl.innerHTML = `<div class="empty">API error: HTTP ${res.status}</div>`;
         return;
       }
+
       const data = await res.json();
       statusEl.textContent = "Loaded.";
       render(data);
     }
 
-    form.addEventListener("submit", async (e) => {
+    applyForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      msg.textContent = "Submitting…";
+      applyMsg.textContent = "Submitting…";
 
-      const fd = new FormData(form);
-
+      const fd = new FormData(applyForm);
       const res = await fetch(`/animals/${encodeURIComponent(animalId)}/apply`, {
         method: "POST",
         body: fd
@@ -114,12 +149,33 @@
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok){
-        msg.textContent = data.error ? `Error: ${data.error}` : "Something went wrong. Try again.";
+        applyMsg.textContent = data.error ? `Error: ${data.error}` : "Something went wrong. Try again.";
         return;
       }
 
-      form.reset();
-      msg.textContent = "✅ Application submitted! The shelter will review it soon.";
+      applyForm.reset();
+      applyMsg.textContent = "✅ Application submitted! The shelter will review it soon.";
+    });
+
+    infoForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      infoMsg.textContent = "Sending…";
+
+      const fd = new FormData(infoForm);
+      const res = await fetch(`/animals/${encodeURIComponent(animalId)}/info`, {
+        method: "POST",
+        body: fd
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok){
+        infoMsg.textContent = data.error ? `Error: ${data.error}` : "Something went wrong. Try again.";
+        return;
+      }
+
+      infoForm.reset();
+      infoMsg.textContent = "✅ Request sent! The shelter will follow up soon.";
     });
 
     load();
