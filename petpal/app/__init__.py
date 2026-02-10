@@ -1,7 +1,7 @@
 from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
-from app.config import Config
+from app.config import DevelopmentConfig, ProductionConfig, BaseConfig
 import os
 
 db = SQLAlchemy()
@@ -13,10 +13,20 @@ def create_app(test_config=None):
     if test_config:
         app.config.update(test_config)
     else:
-        app.config.from_object(Config)
+        env = os.getenv("FLASK_ENV", "development")
+
+        if env == "production":
+            app.config.from_object(ProductionConfig)
+        else:
+            app.config.from_object(DevelopmentConfig)
 
     db.init_app(app)
     jwt.init_app(app)
+
+    if app.config.get("ENV") == "production" or os.getenv("FLASK_ENV") == "production":
+        if not app.config.get("SECRET_KEY") or not app.config.get("SQLALCHEMY_DATABASE_URI"):
+            raise RuntimeError("Missing SECRET_KEY or DATABASE_URL for production")
+
 
     # Import models after db is initialized
     from app.models import Animal, Admin

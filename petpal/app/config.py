@@ -2,13 +2,24 @@ import os
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-class Config:
-    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(BASE_DIR, "petpal.db")
+
+class BaseConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-later")
-
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret")
-
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, "../uploads")
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, "../uploads")
+
+
+class DevelopmentConfig(BaseConfig):
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL",
+        "sqlite:///" + os.path.join(BASE_DIR, "petpal.db")
+    )
+    DEBUG = True
+
+
+class ProductionConfig(BaseConfig):
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
+    DEBUG = False
+
