@@ -7,19 +7,21 @@ import os
 db = SQLAlchemy()
 jwt = JWTManager()
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
-    app.config.from_object(Config)
+
+    if test_config:
+        app.config.update(test_config)
+    else:
+        app.config.from_object(Config)
 
     db.init_app(app)
     jwt.init_app(app)
 
     # Import models after db is initialized
-    from app.models import Animal
-    from flask import render_template
+    from app.models import Animal, Admin
     from app.routes.animals import animals_bp
     from flask import render_template, request, redirect, session, url_for
-    from app.models import Admin
     from app.auth.utils import login_required
 
     # Register blueprints
@@ -84,6 +86,12 @@ def create_app():
     @login_required
     def admin_manage_animals_page():
         return render_template("admin_manage_animals.html")
+    
+    @app.route("/admin/info-requests")
+    @login_required
+    def admin_info_requests_page():
+        return render_template("admin_info_requests.html")
+
 
 
 
