@@ -7,9 +7,13 @@ import os
 db = SQLAlchemy()
 jwt = JWTManager()
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
-    app.config.from_object(Config)
+
+    if test_config:
+        app.config.update(test_config)
+    else:
+        app.config.from_object(Config)
 
     db.init_app(app)
     jwt.init_app(app)
