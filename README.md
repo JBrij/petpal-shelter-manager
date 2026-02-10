@@ -82,5 +82,17 @@ flask run
 The site will be available at:
 http://127.0.0.1:5000/
 
+## Testing
+This project includes a pytest test suite covering:
+- Public routes
+- Animal API
+- Adoption application validation
+- Admin-only route protection
+
+Run tests locally:
+```bash
+pytest
+```
+
 ### 📜 License
 This project is for educational purposes.
