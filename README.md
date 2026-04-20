@@ -36,22 +36,6 @@ Shelters can list animals with photos, track adoption applications, and approve 
 - **Image Storage:** Local uploads (development)
 - **Version Control:** Git & GitHub
 
----
-
-## 📂 Project Structure
-petpal/
-├── app/
-│ ├── init.py
-│ ├── config.py
-│ ├── models/
-│ ├── routes/
-│ ├── templates/
-│ └── static/
-├── uploads/
-├── venv/
-├── requirements.txt
-└── README.md
-
 ### 1️⃣ Clone the repository
 ```bash
 git clone <https://github.com/JBrij/petpal-shelter-manager>
